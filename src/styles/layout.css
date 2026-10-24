@@ -33,6 +33,10 @@
     color: #c7d2e3;
     overflow: hidden;
     z-index: 40;
+    transition:
+      width 0.22s ease,
+      flex-basis 0.22s ease,
+      transform 0.22s ease;
   }
 
   .sidebar__brand {
@@ -215,7 +219,8 @@
   }
 
   .topbar__menu {
-    display: none;
+    display: inline-grid;
+    flex-shrink: 0;
   }
 
   .topbar__search {
@@ -435,13 +440,62 @@
   }
 
   /* ─── Responsive: off-canvas sidebar below 1024px ─── */
+  @media (min-width: 1025px) {
+    .app--sidebar-collapsed .sidebar {
+      width: 76px;
+      flex-basis: 76px;
+    }
+
+    .sidebar--collapsed .sidebar__brand {
+      justify-content: center;
+      padding-right: 10px;
+      padding-left: 10px;
+    }
+
+    .sidebar--collapsed .sidebar__brand img {
+      width: 46px;
+      height: 46px;
+    }
+
+    .sidebar--collapsed .sidebar__wordmark,
+    .sidebar--collapsed .nav-item__label,
+    .sidebar--collapsed .nav-item__chevron {
+      display: none;
+    }
+
+    .sidebar--collapsed .sidebar__nav {
+      padding-right: 8px;
+      padding-left: 8px;
+    }
+
+    .sidebar--collapsed .nav-item {
+      justify-content: center;
+      padding-right: 10px;
+      padding-left: 10px;
+    }
+
+    .sidebar--collapsed .sidebar__footer {
+      padding-right: 8px;
+      padding-left: 8px;
+    }
+
+    .sidebar--collapsed .nav-group__panel {
+      display: none;
+    }
+
+    .sidebar--collapsed .sidebar__watermark {
+      width: 64px;
+    }
+  }
+
   @media (max-width: 1024px) {
     .sidebar {
       position: fixed;
       left: 0;
       top: 0;
       transform: translateX(-100%);
-      transition: transform 0.22s ease;
+      width: var(--sidebar-w);
+      flex-basis: var(--sidebar-w);
       box-shadow: var(--shadow-lg);
     }
 
@@ -455,10 +509,6 @@
       inset: 0;
       background: rgba(10, 31, 64, 0.45);
       z-index: 35;
-    }
-
-    .topbar__menu {
-      display: inline-grid;
     }
   }
 
@@ -474,6 +524,12 @@
 
     .app__content {
       padding-top: 20px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar {
+      transition: none;
     }
   }
 }
