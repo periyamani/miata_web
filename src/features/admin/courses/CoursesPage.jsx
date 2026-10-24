@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GraduationCap, Pencil, Plus } from 'lucide-react';
+import { Download, GraduationCap, Pencil, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -17,6 +17,7 @@ import { useFetch } from '@/hooks/useFetch';
 import { useCreateDialog, useListQuery } from '@/hooks/useListQuery';
 import { durationLabel } from '@/utils/format';
 import { CourseFormModal } from './CourseFormModal';
+import { ImportTimetableModal } from './ImportTimetableModal';
 
 export default function CoursesPage() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function CoursesPage() {
   const state = useFetch('/admin/courses', apiQuery);
   const [creating, setCreating] = useCreateDialog();
   const [editing, setEditing] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   return (
     <>
@@ -31,9 +33,14 @@ export default function CoursesPage() {
         title="Courses"
         subtitle="Add, edit and manage MIATA programs, their modules and duration."
         actions={
-          <Button icon={Plus} onClick={() => setCreating(true)}>
-            Add Course
-          </Button>
+          <>
+            <Button variant="secondary" icon={Download} onClick={() => setImporting(true)}>
+              Import Timetable
+            </Button>
+            <Button icon={Plus} onClick={() => setCreating(true)}>
+              Add Course
+            </Button>
+          </>
         }
       />
       <Card flush>
@@ -77,7 +84,20 @@ export default function CoursesPage() {
                   </span>
                 ),
               },
-              { key: 'duration', header: 'Duration', render: (c) => durationLabel(c.durationValue, c.durationUnit) },
+              {
+                key: 'duration',
+                header: 'Duration',
+                render: (c) => (
+                  <span>
+                    {durationLabel(c.durationValue, c.durationUnit)}
+                    {c.academicYear && (
+                      <span className="cell-person__sub" style={{ display: 'block' }}>
+                        {c.academicYear}
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
               { key: 'moduleCount', header: 'Modules', align: 'right', render: (c) => <span className="num">{c.moduleCount}</span> },
               {
                 key: 'studentCount',
@@ -130,6 +150,11 @@ export default function CoursesPage() {
 
       <CourseFormModal open={creating} onClose={() => setCreating(false)} onSaved={(c) => navigate(`/admin/courses/${c.id}`)} />
       <CourseFormModal open={Boolean(editing)} course={editing} onClose={() => setEditing(null)} onSaved={() => state.reload()} />
+      <ImportTimetableModal
+        open={importing}
+        onClose={() => setImporting(false)}
+        onImported={(c) => navigate(`/admin/courses/${c.id}?tab=timetable`)}
+      />
     </>
   );
 }

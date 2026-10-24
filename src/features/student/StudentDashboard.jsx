@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  ChartColumn,
   ChevronRight,
   CirclePlay,
   ClipboardCheck,
@@ -19,7 +20,6 @@ import {
   AsyncContent,
   Avatar,
   Card,
-  DataTable,
   EmptyState,
   ProgressBar,
   ProgressRing,
@@ -33,7 +33,8 @@ import { useFetch } from '@/hooks/useFetch';
 import { Balance } from '@/features/shared/FeeWidgets';
 import { dateRange, daysUntil, formatDate, formatMoney } from '@/utils/format';
 import { UpcomingMeetingsCard } from '@/features/shared/MeetingWidgets';
-import { ModuleRow, StudentActivity, VideoCard } from './StudentWidgets';
+import { TimetableThisWeekCard } from '@/features/shared/TimetableViews';
+import { AssignmentRow, ModuleRow, StudentActivity, VideoCard } from './StudentWidgets';
 
 // The MIATA crest from the website's assets (public/assets).
 const logo = '/assets/images/loader.png';
@@ -49,6 +50,7 @@ export default function StudentDashboard() {
   useDocumentTitle('Dashboard');
   const { user } = useAuth();
   const state = useFetch('/student/dashboard');
+  const timetables = useFetch('/student/timetable');
   const firstName = user.fullName.split(' ')[0];
 
   return (
@@ -58,12 +60,16 @@ export default function StudentDashboard() {
         const overall = courses.length ? Math.round(courses.reduce((s, c) => s + c.progress.percent, 0) / courses.length) : 0;
         const daysLeft = daysUntil(accessEndsOn);
         return (
-          <div className="dash-grid dash-grid--side">
+          <div className="dash-grid dash-grid--side student-dash">
             <div className="stack">
               <section className="card welcome">
-                <img src={logo} alt="" className="welcome__art" />
-                <h1>Welcome, {firstName} 👋</h1>
-                <p className="welcome__lead">Keep learning, keep growing. Your future is built on what you learn today.</p>
+                <div className="welcome__head">
+                  <div>
+                    <h1>Welcome, {firstName} 👋</h1>
+                    <p className="welcome__lead">Keep learning, keep growing. Your future is built on what you learn today.</p>
+                  </div>
+                  <img src={logo} alt="" className="welcome__art" />
+                </div>
                 <div className="dash-grid dash-grid--stats4">
                   <StatCard
                     icon={CirclePlay}
@@ -122,6 +128,10 @@ export default function StudentDashboard() {
                 </Card>
               )}
 
+              {timetables.data?.map((t) => (
+                <TimetableThisWeekCard key={t.course.id} timetable={t} to={`/student/timetable?courseId=${t.course.id}`} tiles />
+              ))}
+
               <Card title="Featured Videos" icon={CirclePlay} action={<ViewAll to="/student/videos" />}>
                 {featuredVideos.length ? (
                   <div className="video-grid">
@@ -147,32 +157,15 @@ export default function StudentDashboard() {
                   )}
                 </Card>
                 <Card title="My Assignments" icon={ClipboardCheck} action={<ViewAll to="/student/assignments" />} flush>
-                  <DataTable
-                    compact
-                    rows={assignments}
-                    columns={[
-                      {
-                        key: 'title',
-                        header: 'Title',
-                        render: (a) => (
-                          <Link to={`/student/assignments/${a.id}`} className="cell-person__name cell-clip" title={a.title}>
-                            {a.title}
-                          </Link>
-                        ),
-                      },
-                      {
-                        key: 'due',
-                        header: 'Due Date',
-                        render: (a) => <span className="nowrap">{a.dueAt ? formatDate(a.dueAt) : '—'}</span>,
-                      },
-                      {
-                        key: 'status',
-                        header: 'Status',
-                        render: (a) => <StatusBadge status={a.status} label={a.status === 'rework' ? 'Rework' : undefined} />,
-                      },
-                    ]}
-                    empty={<EmptyState icon={ClipboardCheck} title="No assignments" />}
-                  />
+                  {assignments.length ? (
+                    <ul className="list">
+                      {assignments.map((a) => (
+                        <AssignmentRow key={a.id} assignment={a} />
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState icon={ClipboardCheck} title="No assignments" />
+                  )}
                 </Card>
               </div>
               <Card title="Recent Activity" icon={Zap} flush>
@@ -272,21 +265,40 @@ export default function StudentDashboard() {
                 emptyMessage="Classes your professors schedule for your batch appear here."
               />
 
-              <Card title="Course Progress">
-                <div className="row" style={{ gap: 18 }}>
-                  <ProgressRing value={overall} size={110} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {courses.slice(0, 3).map((c) => (
-                      <div key={c.courseId} style={{ marginBottom: 10 }}>
-                        <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', color: 'var(--ink)' }}>{c.title}</div>
-                        <ProgressBar value={c.progress.percent} tone={c.status === 'completed' ? 'green' : undefined} />
+              <Card title="Course Progress" icon={ChartColumn} action={<ViewAll to="/student/progress" label="Details" />}>
+                {courses.length ? (
+                  <>
+                    <div className="progress-summary">
+                      <ProgressRing value={overall} size={96} caption="overall" />
+                      <div>
+                        <strong style={{ color: 'var(--ink)' }}>
+                          {stats.completedCourses} of {stats.totalCourses} courses completed
+                        </strong>
+                        <div className="muted">Average progress across your courses</div>
+                      </div>
+                    </div>
+                    {courses.map((c) => (
+                      <div key={c.courseId} className="course-progress">
+                        <div className="course-progress__head">
+                          <Link to={`/student/courses/${c.courseId}`} className="course-progress__title">
+                            {c.title}
+                          </Link>
+                          <StatusBadge status={c.status === 'active' ? (c.progress.itemsDone ? 'in_progress' : 'not_started') : c.status} />
+                        </div>
+                        <div className="course-progress__bar">
+                          <ProgressBar
+                            value={c.progress.percent}
+                            tone={c.status === 'completed' ? 'green' : undefined}
+                            label={`${c.title} progress`}
+                          />
+                          <span className="num">{c.progress.percent}%</span>
+                        </div>
                       </div>
                     ))}
-                    <span className="muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                      {stats.completedCourses} of {stats.totalCourses} courses completed
-                    </span>
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <EmptyState title="No courses yet" />
+                )}
               </Card>
 
               <Card title="Quick Links" icon={Zap}>
@@ -298,31 +310,6 @@ export default function StudentDashboard() {
                     </Link>
                   ))}
                 </div>
-              </Card>
-
-              <Card title="Course Completion" icon={Trophy} flush>
-                {courses.length ? (
-                  <ul className="list">
-                    {courses.map((c) => (
-                      <li key={c.courseId} className="list__item" style={{ flexWrap: 'wrap' }}>
-                        <div className="list__main">
-                          <Link to={`/student/courses/${c.courseId}`} className="list__title">
-                            {c.title}
-                          </Link>
-                          <div className="row" style={{ marginTop: 4 }}>
-                            <ProgressBar value={c.progress.percent} tone={c.status === 'completed' ? 'green' : undefined} />
-                            <span className="num muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                              {c.progress.percent}%
-                            </span>
-                          </div>
-                        </div>
-                        <StatusBadge status={c.status === 'active' ? (c.progress.itemsDone ? 'in_progress' : 'not_started') : c.status} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyState title="No courses yet" />
-                )}
               </Card>
             </aside>
           </div>

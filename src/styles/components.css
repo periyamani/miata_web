@@ -1235,6 +1235,171 @@
     color: var(--text-muted);
     flex-shrink: 0;
   }
+
+  /* ─── Tooltips ─── */
+  .tooltip-anchor {
+    position: relative;
+    display: inline-flex;
+  }
+
+  /* Disabled controls get no pointer events, so the hint (why it is disabled) still shows on hover. */
+  .tooltip-anchor > :disabled {
+    pointer-events: none;
+  }
+
+  .tooltip-anchor:has(> :disabled) {
+    cursor: not-allowed;
+  }
+
+  .tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 200;
+    max-width: 240px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--navy-900);
+    color: #fff;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow: var(--shadow-lg);
+    pointer-events: none;
+    visibility: hidden;
+    animation: fade-in 0.12s ease-out;
+  }
+
+  .btn--ghost-danger {
+    background: transparent;
+    color: var(--text);
+  }
+
+  .btn--ghost-danger:hover:not(:disabled) {
+    background: var(--red-100);
+    color: var(--red-600);
+  }
+
+  /* ─── Module status (professor dashboard) ─── */
+  .status-split {
+    display: flex;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--gray-100);
+    overflow: hidden;
+  }
+
+  .status-split > span {
+    height: 100%;
+    transition: width 0.4s ease;
+  }
+
+  .status-split__completed {
+    background: var(--purple-600);
+  }
+
+  .status-split__in-progress {
+    background: var(--blue-600);
+  }
+
+  .status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 8px;
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+  }
+
+  .status-legend span::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+
+  .status-legend .is-completed::before {
+    background: var(--purple-600);
+  }
+
+  .status-legend .is-in-progress::before {
+    background: var(--blue-600);
+  }
+
+  .module-status__course {
+    padding: 14px 22px 6px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .module-status__number {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--ink);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .module-status__number.is-in_progress {
+    background: var(--blue-100);
+    color: var(--blue-700);
+  }
+
+  .module-status__number.is-completed {
+    background: var(--purple-100);
+    color: var(--purple-600);
+  }
+
+  .module-status__title {
+    white-space: normal;
+  }
+
+  .dropdown__panel.module-status__menu {
+    min-width: 260px;
+  }
+
+  .dropdown__item[aria-checked='true'] {
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .dropdown__item[aria-checked='true'] svg {
+    color: var(--accent-strong);
+  }
+
+  .dropdown__item:disabled {
+    cursor: default;
+  }
+
+  .dropdown__item-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .dropdown__item-text small {
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  .dropdown__divider {
+    height: 1px;
+    margin: 6px 0;
+    background: var(--border);
+  }
 }
 
 @keyframes spin {

@@ -76,6 +76,7 @@ const ReviewQueuePage = page(() => import('@/features/professor/ReviewQueuePage'
 const ReviewPage = page(() => import('@/features/professor/ReviewPage'));
 const CompletedReworkPage = page(() => import('@/features/professor/CompletedReworkPage'));
 const ProfessorMeetingsPage = page(() => import('@/features/professor/MeetingsPage'));
+const ProfessorTimetablePage = page(() => import('@/features/professor/TimetablePage'));
 
 // Student
 const StudentDashboard = page(() => import('@/features/student/StudentDashboard'));
@@ -90,6 +91,7 @@ const SubmissionsPage = page(() => import('@/features/student/SubmissionsPage'))
 const ProgressPage = page(() => import('@/features/student/ProgressPage'));
 const CompletionPage = page(() => import('@/features/student/CompletionPage'));
 const StudentMeetingsPage = page(() => import('@/features/student/MeetingsPage'));
+const StudentTimetablePage = page(() => import('@/features/student/TimetablePage'));
 const StudentFeesPage = page(() => import('@/features/student/FeesPage'));
 
 export function AppRoutes() {
@@ -170,6 +172,7 @@ export function AppRoutes() {
                 <Route path="reviews/:submissionId" element={<ReviewPage />} />
                 <Route path="completed" element={<CompletedReworkPage />} />
                 <Route path="meetings" element={<ProfessorMeetingsPage />} />
+                <Route path="timetable" element={<ProfessorTimetablePage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
@@ -189,6 +192,7 @@ export function AppRoutes() {
                 <Route path="progress" element={<ProgressPage />} />
                 <Route path="completion" element={<CompletionPage />} />
                 <Route path="meetings" element={<StudentMeetingsPage />} />
+                <Route path="timetable" element={<StudentTimetablePage />} />
                 <Route path="fees" element={<StudentFeesPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="*" element={<NotFoundPage />} />

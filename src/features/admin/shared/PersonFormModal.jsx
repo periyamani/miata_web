@@ -57,9 +57,9 @@ function announceWelcomeEmail(toast, name, email) {
 /**
  * Create or edit a student / professor / agent. New accounts are e-mailed a single-use link to set their own password;
  * the admin may also set a temporary password to hand over in person (required when e-mail is not set up).
- * Passwords are never e-mailed.
+ * Passwords are never e-mailed. `defaults` prefills a new account (e.g. a lecturer's name from a course timetable).
  */
-export function PersonFormModal({ open, role, person, onClose, onSaved }) {
+export function PersonFormModal({ open, role, person, defaults, onClose, onSaved }) {
   const toast = useToast();
   const creating = !person;
   const courses = useFetch(open && creating && role !== 'agent' ? '/admin/lookups/courses' : null);
@@ -110,6 +110,7 @@ export function PersonFormModal({ open, role, person, onClose, onSaved }) {
     batchId: '',
     courseIds: [],
     ...Object.fromEntries(PROFILE_FIELDS[role].map((f) => [f.name, p[f.name] ?? ''])),
+    ...(creating ? defaults : null),
   };
 
   return (

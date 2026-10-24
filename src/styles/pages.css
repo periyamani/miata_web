@@ -129,28 +129,52 @@
     font-weight: 800;
   }
 
+  .welcome__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
   .welcome__lead {
-    margin: 6px 0 20px;
+    margin-top: 6px;
     color: var(--text-muted);
     font-size: var(--fs-md);
     max-width: 560px;
   }
 
   .welcome__art {
-    position: absolute;
-    right: 24px;
-    top: 14px;
-    width: 120px;
+    width: 84px;
+    flex-shrink: 0;
     opacity: 0.9;
   }
 
-  @container banner (max-width: 860px) {
-    .welcome .dash-grid--stats4 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Stats: one row of four (icon beside the text, or above it when the banner is narrower), then 2 × 2, then 1 column. */
+  .welcome .dash-grid--stats4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  @container banner (max-width: 1000px) {
+    .welcome .stat-card {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 
-  @container banner (max-width: 460px) {
+  @container banner (max-width: 720px) {
+    .welcome .dash-grid--stats4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .welcome .stat-card {
+      flex-direction: row;
+      align-items: center;
+    }
+  }
+
+  @container banner (max-width: 380px) {
     .welcome .dash-grid--stats4 {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -160,6 +184,105 @@
     .welcome__art {
       display: none;
     }
+  }
+
+  /* ─── Student dashboard: larger, darker secondary text (AA contrast on white) ─── */
+  .student-dash {
+    --text-muted: #56657c;
+  }
+
+  .student-dash .list__title {
+    font-size: var(--fs-base);
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .student-dash .list__sub,
+  .student-dash .stat-card__hint,
+  .student-dash .video-card__sub,
+  .student-dash .card__subtitle {
+    font-size: var(--fs-sm);
+  }
+
+  .student-dash .stat-card__label,
+  .student-dash .video-card__title,
+  .student-dash .kv-row {
+    font-size: var(--fs-base);
+  }
+
+  .student-dash .kv-row > :last-child {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* Sessions of the week as tiles across the full-width card */
+  .list--tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    padding: 4px 22px 16px;
+  }
+
+  .list--tiles .list__item,
+  .list--tiles .list__item:last-child {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+  }
+
+  /* Session titles are shown in full (no two-line clamp). */
+  .student-dash .list--tiles .list__title {
+    display: block;
+  }
+
+  /* Course Progress card: overall ring, then each course with its bar and status */
+  .progress-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 14px;
+  }
+
+  .course-progress {
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .course-progress:last-child {
+    padding-bottom: 0;
+  }
+
+  .course-progress__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .course-progress__title {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .course-progress__bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .course-progress__bar .progress {
+    flex: 1;
+  }
+
+  .course-progress__bar .num {
+    min-width: 36px;
+    font-weight: 600;
+    color: var(--ink);
+    text-align: right;
   }
 
   /* ─── Video cards ─── */
@@ -340,9 +463,27 @@
   }
 
   .module {
+    position: relative;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: #fff;
+    transition:
+      opacity 0.15s ease,
+      box-shadow 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .module.is-dragging,
+  .lesson.is-dragging {
+    opacity: 0.45;
+  }
+
+  .module.is-drop-before {
+    box-shadow: 0 -3px 0 var(--accent);
+  }
+
+  .module.is-drop-after {
+    box-shadow: 0 3px 0 var(--accent);
   }
 
   .module__head {
@@ -385,10 +526,22 @@
   }
 
   .lesson {
+    position: relative;
     display: flex;
     gap: 12px;
     padding: 12px 0;
     border-bottom: 1px dashed var(--border);
+    transition:
+      opacity 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .lesson.is-drop-before {
+    box-shadow: 0 -2px 0 var(--accent);
+  }
+
+  .lesson.is-drop-after {
+    box-shadow: 0 2px 0 var(--accent);
   }
 
   .lesson:last-child {
@@ -451,6 +604,57 @@
     display: flex;
     gap: 4px;
     margin-left: auto;
+  }
+
+  .curriculum__drag-handle {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: grab;
+    touch-action: manipulation;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+  }
+
+  .curriculum__drag-handle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .curriculum__drag-handle:hover:not(:disabled) {
+    border-color: var(--border);
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
+  .curriculum__drag-handle:active:not(:disabled) {
+    cursor: grabbing;
+  }
+
+  .curriculum__drag-handle:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  /* Phones: a module's or lesson's actions go on their own line under it, so the title keeps the width. */
+  @media (max-width: 640px) {
+    .module__head:has(> .module-admin__actions),
+    .lesson:has(> .module-admin__actions) {
+      flex-wrap: wrap;
+    }
+
+    .module__head > .module-admin__actions,
+    .lesson > .module-admin__actions {
+      flex-basis: 100%;
+      justify-content: flex-end;
+    }
   }
 
   /* ─── Feed (reviews + comments) ─── */
@@ -760,5 +964,148 @@
 
   .amount-negative {
     color: var(--green-600);
+  }
+
+  /* ─── Course weekly timetable ─── */
+  .tt-week {
+    padding: 14px 22px 16px;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: calc(var(--topbar-h) + 12px);
+  }
+
+  .tt-week:last-child {
+    border-bottom: 0;
+  }
+
+  .tt-week--current {
+    background: color-mix(in srgb, var(--blue-100) 45%, var(--surface));
+    box-shadow: inset 3px 0 0 var(--blue-600);
+  }
+
+  .tt-week__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .tt-week__title {
+    margin: 0;
+    font-size: var(--fs-md);
+    font-weight: 700;
+    color: var(--navy-700);
+  }
+
+  .tt-week--past .tt-week__title {
+    color: var(--text-muted);
+  }
+
+  .tt-week__dates {
+    font-weight: 600;
+  }
+
+  .tt-rows {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .tt-row {
+    display: grid;
+    /* A capped doctor column keeps topics aligned from row to row. */
+    grid-template-columns: minmax(150px, 280px) minmax(0, 1fr);
+    gap: 6px 16px;
+    align-items: center;
+    padding: 9px 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .tt-row:first-child {
+    border-top: 0;
+  }
+
+  /* The signed-in professor's own lecturer rows. */
+  .tt-row--mine {
+    background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface));
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .tt-row__who {
+    min-width: 0;
+  }
+
+  .tt-row__name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .tt-row__meta {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+  }
+
+  .tt-row__what {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    min-width: 0;
+  }
+
+  .tt-topic {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  /* One session: its topic (with the edit button) above its module. */
+  .tt-session {
+    display: grid;
+    justify-items: start;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .tt-row__topic {
+    font-size: var(--fs-sm);
+    color: var(--text);
+  }
+
+  .tt-row__none {
+    font-size: var(--fs-sm);
+    font-style: italic;
+    color: var(--text-faint);
+  }
+
+  /* Module names are long: wrap inside the chip rather than cut them off. */
+  .tt-module {
+    display: inline-block;
+    max-width: 100%;
+    border-radius: var(--radius-sm);
+    line-height: 1.45;
+    background: var(--tint-blue);
+    color: var(--tint-blue-ink);
+  }
+
+  .tt-notes {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding-left: 18px;
+    font-size: var(--fs-sm);
+    color: var(--text);
+  }
+
+  @container content (max-width: 720px) {
+    .tt-week {
+      padding: 12px 14px 14px;
+    }
+
+    .tt-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 }

@@ -1,46 +1,68 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
-  ArrowDown,
-  ArrowUp,
   BookOpen,
+  CalendarClock,
   ChevronDown,
   ChevronRight,
   FileText,
+  GripVertical,
   Pencil,
   Plus,
   SlidersHorizontal,
   Trash2,
   X,
 } from 'lucide-react';
-import { Button, Card, EmptyState, FormModal, useConfirm } from '@/components';
+import { Button, Card, EmptyState, StatusBadge, Tooltip, useConfirm } from '@/components';
+import { moduleStatusDetail } from '@/features/shared/moduleStatus';
 import { useApiAction } from '@/hooks/useApiAction';
 import { api } from '@/services/api';
 import { AvailabilityChips, AvailabilityModal } from '../shared/BatchAvailability';
+import { LessonFormModal, ModuleFormModal } from './CurriculumForms';
+import { moveItem, moveItemBy } from './curriculumOrder';
+import { weekBounds, weekDates, weekLabel, weeksLabel } from './timetable';
 
-const MODULE_FIELDS = [
-  { name: 'title', label: 'Module title', required: true, span: true },
-  { name: 'description', label: 'Description', type: 'textarea', span: true },
-];
-const LESSON_FIELDS = [
-  { name: 'title', label: 'Lesson title', required: true, span: true },
-  { name: 'durationMinutes', label: 'Duration (minutes)', type: 'number' },
-  { name: 'content', label: 'Lesson notes / content', type: 'textarea', span: true, rows: 6 },
-];
-
-function move(list, index, delta) {
-  const ids = list.map((x) => x.id);
-  const target = index + delta;
-  [ids[index], ids[target]] = [ids[target], ids[index]];
-  return ids;
+function DragHandle({ noun, title, disabled, onMove, onDragStart, onDragEnd }) {
+  return (
+    <Tooltip label={`Drag to reorder this ${noun}. With the handle focused, use Alt+Up or Alt+Down to move it.`}>
+      <button
+        type="button"
+        className="curriculum__drag-handle"
+        draggable={!disabled}
+        disabled={disabled}
+        aria-label={`Reorder ${noun}: ${title}`}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onKeyDown={(event) => {
+          if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+          event.preventDefault();
+          onMove(event.key === 'ArrowUp' ? -1 : 1);
+        }}
+      >
+        <GripVertical aria-hidden="true" />
+      </button>
+    </Tooltip>
+  );
 }
 
 /** Modules (ordered) with their lessons, module-level professors and batch availability. */
 export function CurriculumTab({ course, professors, onChange }) {
   const confirm = useConfirm();
-  const { run } = useApiAction();
+  const { run, busy } = useApiAction();
+  const dragRef = useRef(null);
+  const [dragState, setDragState] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set(course.modules.slice(0, 1).map((m) => m.id)));
   const [dialog, setDialog] = useState(null); // { kind: 'module'|'lesson', item?, moduleId? }
   const [availability, setAvailability] = useState(null); // module whose batches are being edited
+  // The course's lecturers linked to professor accounts (one entry per account) — the only module professors it takes.
+  const hasLecturers = (course.lecturers ?? []).length > 0;
+  const lecturerAccounts = [
+    ...new Map(
+      (course.lecturers ?? [])
+        .filter((l) => l.professorId)
+        .map((l) => [l.professorId, { id: l.professorId, fullName: l.professorName, isActive: l.professorActive }]),
+    ).values(),
+  ];
+  const lecturerIds = new Set(lecturerAccounts.map((p) => p.id));
 
   const toggle = (id) =>
     setExpanded((s) => {
@@ -49,19 +71,6 @@ export function CurriculumTab({ course, professors, onChange }) {
       else next.add(id);
       return next;
     });
-
-  const saveModule = async (values) => {
-    if (dialog.item) await api.put(`/admin/modules/${dialog.item.id}`, values);
-    else await api.post(`/admin/courses/${course.id}/modules`, values);
-    onChange();
-  };
-
-  const saveLesson = async (values) => {
-    const payload = { ...values, durationMinutes: values.durationMinutes ? Number(values.durationMinutes) : null };
-    if (dialog.item) await api.put(`/admin/lessons/${dialog.item.id}`, payload);
-    else await api.post(`/admin/modules/${dialog.moduleId}/lessons`, payload);
-    onChange();
-  };
 
   const removeModule = async (m) => {
     const ok = await confirm({
@@ -79,10 +88,65 @@ export function CurriculumTab({ course, professors, onChange }) {
     }
   };
 
-  const reorderModules = (index, delta) =>
-    run(() => api.put(`/admin/courses/${course.id}/modules/order`, { ids: move(course.modules, index, delta) }), { onDone: onChange });
-  const reorderLessons = (m, index, delta) =>
-    run(() => api.put(`/admin/modules/${m.id}/lessons/order`, { ids: move(m.lessons, index, delta) }), { onDone: onChange });
+  // One reorder at a time: the displayed order changes only after the saved order reloads successfully.
+  const reordering = busy === 'reorder';
+  const saveOrder = (path, items, noun) =>
+    run(() => api.put(path, { ids: items.map((item) => item.id) }), {
+      key: 'reorder',
+      success: `${noun} order updated`,
+      onDone: onChange,
+    });
+  const reorderModules = (items) => saveOrder(`/admin/courses/${course.id}/modules/order`, items, 'Module');
+  const reorderLessons = (m, items) => saveOrder(`/admin/modules/${m.id}/lessons/order`, items, 'Lesson');
+
+  const startDrag = (event, item) => {
+    if (reordering) {
+      event.preventDefault();
+      return;
+    }
+    dragRef.current = item;
+    setDragState({ item, target: null });
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `${item.type}:${item.id}`);
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+    setDragState(null);
+  };
+  const canDrop = (type, parentId = null) => {
+    const source = dragRef.current;
+    return !reordering && source?.type === type && (type === 'module' || source.parentId === parentId);
+  };
+  const previewDrop = (event, type, targetId, parentId = null) => {
+    if (!canDrop(type, parentId)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const after = event.clientY > bounds.top + bounds.height / 2;
+    setDragState((current) =>
+      current?.target?.id === targetId && current.target.after === after
+        ? current
+        : { ...current, target: { id: targetId, after } },
+    );
+  };
+  const dropItem = (event, type, targetId, items, parentId = null, parentModule = null) => {
+    if (!canDrop(type, parentId)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const source = dragRef.current;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const after = event.clientY > bounds.top + bounds.height / 2;
+    const ordered = moveItem(items, source.id, targetId, after);
+    endDrag();
+    if (ordered !== items) {
+      if (type === 'module') reorderModules(ordered);
+      else reorderLessons(parentModule, ordered);
+    }
+  };
+  const dragHandlers = (type, id, parentId = null) => ({
+    onDragStart: (event) => startDrag(event, { type, id, parentId }),
+    onDragEnd: endDrag,
+  });
 
   const assignProfessor = (moduleId, professorId) =>
     run(() => api.post(`/admin/modules/${moduleId}/professors`, { professorId: Number(professorId) }), {
@@ -98,7 +162,7 @@ export function CurriculumTab({ course, professors, onChange }) {
   return (
     <Card
       title="Modules & Lessons"
-      subtitle="Students see modules and lessons in this order."
+      subtitle="Students see modules and lessons in this order. Drag the grip handles to reorder."
       action={
         <Button icon={Plus} size="sm" onClick={() => setDialog({ kind: 'module' })}>
           Add module
@@ -111,25 +175,57 @@ export function CurriculumTab({ course, professors, onChange }) {
         <div className="curriculum">
           {course.modules.map((m, mi) => {
             const open = expanded.has(m.id);
-            const available = professors.filter((p) => p.isActive && !m.professors.some((x) => x.id === p.id));
+            // A course with lecturers (a timetable) has its modules taught by them: only their accounts can be assigned.
+            const available = (hasLecturers ? lecturerAccounts : professors).filter((p) => p.isActive && !m.professors.some((x) => x.id === p.id));
+            // Curriculum topics keep their numbering; weekly sessions (lessons with a week) show their week instead.
+            const sessions = m.lessons.filter((l) => l.weekNumber);
+            const lecturerNames = [...new Set(sessions.map((l) => l.lecturerName).filter(Boolean))].join(', ');
+            const topicNumbers = Object.fromEntries(m.lessons.filter((l) => !l.weekNumber).map((l, i) => [l.id, i + 1]));
             return (
-              <div key={m.id} className="module">
+              <div
+                key={m.id}
+                className={[
+                  'module',
+                  dragState?.item.type === 'module' && dragState.item.id === m.id && 'is-dragging',
+                  dragState?.item.type === 'module' &&
+                    dragState.target?.id === m.id &&
+                    `is-drop-${dragState.target.after ? 'after' : 'before'}`,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onDragOver={(event) => previewDrop(event, 'module', m.id)}
+                onDrop={(event) => dropItem(event, 'module', m.id, course.modules)}
+              >
                 <div className="module__head">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => toggle(m.id)}
-                    aria-expanded={open}
-                    aria-label={open ? 'Collapse module' : 'Expand module'}
-                  >
-                    {open ? <ChevronDown /> : <ChevronRight />}
-                  </button>
+                  <Tooltip label={open ? 'Hide this module’s lessons' : 'Show this module’s lessons'}>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => toggle(m.id)}
+                      aria-expanded={open}
+                      aria-label={open ? 'Collapse module' : 'Expand module'}
+                    >
+                      {open ? <ChevronDown /> : <ChevronRight />}
+                    </button>
+                  </Tooltip>
                   <span className="module__index">{mi + 1}</span>
                   <div style={{ minWidth: 0 }}>
-                    <div className="module__title">{m.title}</div>
+                    <div className="row row--wrap" style={{ gap: '4px 10px' }}>
+                      <span className="module__title">{m.title}</span>
+                      <Tooltip label={`${moduleStatusDetail(m)}. The module’s professors update this from their dashboard.`}>
+                        <StatusBadge status={m.teachingStatus} />
+                      </Tooltip>
+                    </div>
                     <div className="module__sub">
                       {m.lessons.length} lessons · {m.videoCount} videos · {m.assignmentCount} assignments
                     </div>
+                    {sessions.length > 0 && (
+                      <div className="module__sub" style={{ marginTop: 2 }}>
+                        <CalendarClock size={12} style={{ display: 'inline', verticalAlign: -1 }} aria-hidden="true" />{' '}
+                        {sessions.length} weekly sessions · {weeksLabel([...new Set(sessions.map((l) => l.weekNumber))].sort((a, b) => a - b))}
+                        {lecturerNames && ` · ${lecturerNames}`}
+                      </div>
+                    )}
                     {m.batches.length > 0 && (
                       <div style={{ marginTop: 4 }}>
                         <AvailabilityChips batches={m.batches} />
@@ -137,21 +233,12 @@ export function CurriculumTab({ course, professors, onChange }) {
                     )}
                   </div>
                   <div className="module-admin__actions">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={ArrowUp}
-                      disabled={mi === 0}
-                      onClick={() => reorderModules(mi, -1)}
-                      aria-label="Move module up"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={ArrowDown}
-                      disabled={mi === course.modules.length - 1}
-                      onClick={() => reorderModules(mi, 1)}
-                      aria-label="Move module down"
+                    <DragHandle
+                      noun="module"
+                      title={m.title}
+                      disabled={reordering}
+                      onMove={(delta) => reorderModules(moveItemBy(course.modules, m.id, delta))}
+                      {...dragHandlers('module', m.id)}
                     />
                     <Button
                       variant="ghost"
@@ -159,6 +246,7 @@ export function CurriculumTab({ course, professors, onChange }) {
                       icon={Pencil}
                       onClick={() => setDialog({ kind: 'module', item: m })}
                       aria-label="Edit module"
+                      tooltip="Edit the module’s title and description"
                     />
                     <Button
                       variant="ghost"
@@ -166,8 +254,16 @@ export function CurriculumTab({ course, professors, onChange }) {
                       icon={SlidersHorizontal}
                       onClick={() => setAvailability(m)}
                       aria-label="Choose which batches get this module"
+                      tooltip="Choose which batches get this module"
                     />
-                    <Button variant="ghost" size="sm" icon={Trash2} onClick={() => removeModule(m)} aria-label="Delete module" />
+                    <Button
+                      variant="ghost-danger"
+                      size="sm"
+                      icon={Trash2}
+                      onClick={() => removeModule(m)}
+                      aria-label="Delete module"
+                      tooltip="Delete the module and its lessons"
+                    />
                   </div>
                 </div>
                 {open && (
@@ -186,13 +282,19 @@ export function CurriculumTab({ course, professors, onChange }) {
                         </span>
                       )}
                       {m.professors.map((p) => (
-                        <span key={p.id} className="chip">
+                        <span key={p.id} className="chip" title={hasLecturers && !lecturerIds.has(p.id) ? 'Not one of the course’s lecturers' : undefined}>
                           {p.fullName}
+                          {hasLecturers && !lecturerIds.has(p.id) && <span className="muted"> (not a course lecturer)</span>}
                           <button type="button" onClick={() => unassignProfessor(m.id, p.id)} aria-label={`Remove ${p.fullName}`}>
                             <X />
                           </button>
                         </span>
                       ))}
+                      {hasLecturers && lecturerIds.size === 0 && (
+                        <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                          · Link the course’s lecturers to professor accounts (Weekly Timetable tab) to assign them.
+                        </span>
+                      )}
                       {available.length > 0 && (
                         <select
                           className="select select--inline"
@@ -200,7 +302,7 @@ export function CurriculumTab({ course, professors, onChange }) {
                           onChange={(e) => e.target.value && assignProfessor(m.id, e.target.value)}
                           aria-label="Assign professor to module"
                         >
-                          <option value="">+ Assign professor</option>
+                          <option value="">{hasLecturers ? '+ Assign lecturer' : '+ Assign professor'}</option>
                           {available.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.fullName}
@@ -210,33 +312,56 @@ export function CurriculumTab({ course, professors, onChange }) {
                       )}
                     </div>
 
-                    {m.lessons.map((l, li) => (
-                      <div key={l.id} className="lesson">
-                        <FileText className="lesson__icon" size={18} aria-hidden="true" />
+                    {m.lessons.map((l) => (
+                      <div
+                        key={l.id}
+                        className={[
+                          'lesson',
+                          dragState?.item.type === 'lesson' && dragState.item.id === l.id && 'is-dragging',
+                          dragState?.item.type === 'lesson' &&
+                            dragState.item.parentId === m.id &&
+                            dragState.target?.id === l.id &&
+                            `is-drop-${dragState.target.after ? 'after' : 'before'}`,
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onDragOver={(event) => {
+                          event.stopPropagation();
+                          previewDrop(event, 'lesson', l.id, m.id);
+                        }}
+                        onDrop={(event) => {
+                          event.stopPropagation();
+                          dropItem(event, 'lesson', l.id, m.lessons, m.id, m);
+                        }}
+                      >
+                        {l.weekNumber ? (
+                          <CalendarClock className="lesson__icon" size={18} aria-label="Weekly session" />
+                        ) : (
+                          <FileText className="lesson__icon" size={18} aria-hidden="true" />
+                        )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="lesson__title">
-                            {li + 1}. {l.title} {l.durationMinutes ? <span className="muted">· {l.durationMinutes} min</span> : null}
+                            {topicNumbers[l.id] ? `${topicNumbers[l.id]}. ` : ''}
+                            {l.title} {l.durationMinutes ? <span className="muted">· {l.durationMinutes} min</span> : null}
                           </div>
+                          {l.weekNumber && (
+                            <div className="lesson__content">
+                              {weekLabel(l.weekNumber)}
+                              {course.startDate && ` · ${weekDates(weekBounds(course.startDate, l.weekNumber))}`}
+                              {l.lecturerName && ` · ${l.lecturerName}`}
+                            </div>
+                          )}
                           {l.content && (
                             <div className="lesson__content">{l.content.length > 220 ? `${l.content.slice(0, 220)}…` : l.content}</div>
                           )}
                         </div>
                         <div className="module-admin__actions">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={ArrowUp}
-                            disabled={li === 0}
-                            onClick={() => reorderLessons(m, li, -1)}
-                            aria-label="Move lesson up"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={ArrowDown}
-                            disabled={li === m.lessons.length - 1}
-                            onClick={() => reorderLessons(m, li, 1)}
-                            aria-label="Move lesson down"
+                          <DragHandle
+                            noun="lesson"
+                            title={l.title}
+                            disabled={reordering}
+                            onMove={(delta) => reorderLessons(m, moveItemBy(m.lessons, l.id, delta))}
+                            {...dragHandlers('lesson', l.id, m.id)}
                           />
                           <Button
                             variant="ghost"
@@ -244,8 +369,16 @@ export function CurriculumTab({ course, professors, onChange }) {
                             icon={Pencil}
                             onClick={() => setDialog({ kind: 'lesson', item: l, moduleId: m.id })}
                             aria-label="Edit lesson"
+                            tooltip="Edit the lesson’s title, week, lecturer and notes"
                           />
-                          <Button variant="ghost" size="sm" icon={Trash2} onClick={() => removeLesson(l)} aria-label="Delete lesson" />
+                          <Button
+                            variant="ghost-danger"
+                            size="sm"
+                            icon={Trash2}
+                            onClick={() => removeLesson(l)}
+                            aria-label="Delete lesson"
+                            tooltip="Delete the lesson"
+                          />
                         </div>
                       </div>
                     ))}
@@ -266,26 +399,20 @@ export function CurriculumTab({ course, professors, onChange }) {
         </div>
       )}
 
-      <FormModal
+      <ModuleFormModal
         open={dialog?.kind === 'module'}
-        title={dialog?.item ? 'Edit module' : 'Add module'}
-        fields={MODULE_FIELDS}
-        size="md"
-        initialValues={{ title: dialog?.item?.title ?? '', description: dialog?.item?.description ?? '' }}
-        onSubmit={saveModule}
+        courseId={course.id}
+        module={dialog?.item}
         onClose={() => setDialog(null)}
+        onSaved={onChange}
       />
-      <FormModal
+      <LessonFormModal
         open={dialog?.kind === 'lesson'}
-        title={dialog?.item ? 'Edit lesson' : 'Add lesson'}
-        fields={LESSON_FIELDS}
-        initialValues={{
-          title: dialog?.item?.title ?? '',
-          durationMinutes: dialog?.item?.durationMinutes ?? '',
-          content: dialog?.item?.content ?? '',
-        }}
-        onSubmit={saveLesson}
+        course={course}
+        moduleId={dialog?.moduleId}
+        lesson={dialog?.item}
         onClose={() => setDialog(null)}
+        onSaved={onChange}
       />
       {availability && (
         <AvailabilityModal

@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  CalendarDays,
   ChartColumn,
   CircleCheck,
   CirclePlay,
@@ -59,6 +60,7 @@ export const NAVIGATION = {
     { to: '/professor', label: 'Dashboard', icon: House, end: true },
     { to: '/professor/students', label: 'Students List', icon: Users },
     { to: '/professor/assignments', label: 'Assignments', icon: FileText },
+    { to: '/professor/timetable', label: 'Timetable', icon: CalendarDays },
     { to: '/professor/meetings', label: 'Online Classes', icon: MonitorPlay },
     { to: '/professor/reviews', label: 'Review / Comment', icon: MessageSquare },
     { to: '/professor/completed', label: 'Completed / Rework', icon: CircleCheck },
@@ -68,6 +70,7 @@ export const NAVIGATION = {
     { to: '/student', label: 'Dashboard', icon: House, end: true },
     { to: '/student/courses', label: 'My Courses', icon: GraduationCap },
     { to: '/student/modules', label: 'Modules', icon: BookOpen },
+    { to: '/student/timetable', label: 'Timetable', icon: CalendarDays },
     { to: '/student/videos', label: 'Videos', icon: CirclePlay },
     { to: '/student/meetings', label: 'Online Classes', icon: MonitorPlay },
     { to: '/student/assignments', label: 'Assignments', icon: ClipboardList },

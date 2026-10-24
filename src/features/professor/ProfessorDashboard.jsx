@@ -1,5 +1,6 @@
 import {
   Bell,
+  BookOpen,
   Calendar,
   CircleCheck,
   Clock,
@@ -18,6 +19,7 @@ import {
   Card,
   DataTable,
   EmptyState,
+  ErrorState,
   PageHeader,
   PersonCell,
   ProgressBar,
@@ -27,8 +29,10 @@ import {
 } from '@/components';
 import { useAuth } from '@/features/auth/AuthContext';
 import { UpcomingMeetingsCard } from '@/features/shared/MeetingWidgets';
+import { TimetableThisWeekCard } from '@/features/shared/TimetableViews';
 import { useFetch } from '@/hooks/useFetch';
 import { dateRange, formatDate, formatDateTime, timeAgo } from '@/utils/format';
+import { ModuleStatusCard } from './ModuleStatusCard';
 
 /** The batches the professor teaches: their courses, size, progress and what awaits review, with batch-wise shortcuts. */
 function MyBatches({ batches }) {
@@ -125,6 +129,8 @@ export default function ProfessorDashboard() {
   const { user } = useAuth();
   const state = useFetch('/professor/dashboard');
   const notifications = useFetch('/notifications', { limit: 3 });
+  const timetables = useFetch('/professor/timetable');
+  const modules = useFetch('/professor/modules');
 
   return (
     <>
@@ -183,6 +189,20 @@ export default function ProfessorDashboard() {
             <div className="dash-grid dash-grid--side">
               <div className="stack">
                 {batches.length > 0 && <MyBatches batches={batches} />}
+                {modules.error && !modules.data?.length ? (
+                  <Card title="My Modules" icon={BookOpen}>
+                    <ErrorState error={modules.error} onRetry={modules.reload} />
+                  </Card>
+                ) : (
+                  modules.data?.length > 0 && (
+                    <ModuleStatusCard
+                      modules={modules.data}
+                      onChange={modules.reload}
+                      loadError={modules.error}
+                      onRetry={modules.reload}
+                    />
+                  )
+                )}
                 <div className="dash-grid dash-grid--pair">
                   <Card title="Recent Students" icon={Users} action={<ViewAll to="/professor/students" />} flush>
                     <DataTable
@@ -293,6 +313,15 @@ export default function ProfessorDashboard() {
                     ))}
                   </div>
                 </Card>
+                {timetables.data?.map((t) => (
+                  <TimetableThisWeekCard
+                    key={t.course.id}
+                    timetable={t}
+                    mineIds={t.myLecturerIds}
+                    to={`/professor/timetable?courseId=${t.course.id}`}
+                    title={t.myLecturerIds.length ? 'My Sessions This Week' : 'This Week'}
+                  />
+                ))}
                 <UpcomingMeetingsCard
                   meetings={upcomingMeetings}
                   to="/professor/meetings"

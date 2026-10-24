@@ -1,10 +1,22 @@
 import { Link } from 'react-router-dom';
+import { Tooltip } from './Tooltip';
 
 /**
  * Button or link styled as a button.
- * variant: primary (role accent) | navy | secondary | ghost | danger · size: md | sm
+ * variant: primary (role accent) | navy | secondary | ghost | ghost-danger (turns red on hover) | danger · size: md | sm
+ * tooltip: a hint shown on hover / keyboard focus (explain what an icon-only button does).
  */
-export function Button({ variant = 'primary', size = 'md', icon: Icon, loading = false, block, to, className = '', children, ...props }) {
+export function Button({ tooltip, ...props }) {
+  return tooltip ? (
+    <Tooltip label={tooltip}>
+      <ButtonElement {...props} />
+    </Tooltip>
+  ) : (
+    <ButtonElement {...props} />
+  );
+}
+
+function ButtonElement({ variant = 'primary', size = 'md', icon: Icon, loading = false, block, to, className = '', children, ...props }) {
   const classes = ['btn', `btn--${variant}`, size === 'sm' && 'btn--sm', block && 'btn--block', !children && 'btn--icon', className]
     .filter(Boolean)
     .join(' ');

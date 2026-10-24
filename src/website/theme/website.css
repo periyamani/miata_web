@@ -84,6 +84,42 @@
   opacity: 0.8;
 }
 
+/* Show/hide password button inside the field (AuthField). Overrides the theme's input padding. */
+.login-page__form-input-box.login-page__form-input-box--password input[type] {
+  padding-right: 64px;
+}
+
+.login-page__form-input-box input::-ms-reveal {
+  display: none;
+}
+
+.login-page__password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--eduact-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.login-page__password-toggle:hover {
+  color: var(--eduact-secondary);
+}
+
+.login-page__password-toggle:focus-visible {
+  outline: 2px solid var(--eduact-base);
+  outline-offset: -2px;
+}
+
 .login-page__form-btn-box .eduact-btn[disabled] {
   opacity: 0.7;
   cursor: progress;

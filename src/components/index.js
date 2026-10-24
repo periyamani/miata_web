@@ -15,6 +15,7 @@ export { ProgressBar, ProgressRing } from './ui/Progress';
 export { FileDrop } from './ui/FileDrop';
 export { InfoList } from './ui/InfoList';
 export { Dropdown } from './ui/Dropdown';
+export { Tooltip } from './ui/Tooltip';
 export { Spinner, PageLoader, EmptyState, ErrorState, AsyncContent, Alert } from './feedback/States';
 export { ToastProvider, useToast } from './feedback/ToastProvider';
 export { ConfirmProvider, useConfirm } from './feedback/ConfirmProvider';

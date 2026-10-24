@@ -5,11 +5,12 @@ import { AsyncContent, Button, PageHeader, StatCard, StatusBadge, Tabs, useConfi
 import { useApiAction } from '@/hooks/useApiAction';
 import { useFetch } from '@/hooks/useFetch';
 import { api } from '@/services/api';
-import { durationLabel, formatNumber } from '@/utils/format';
+import { dateRange, durationLabel, formatNumber } from '@/utils/format';
 import { CourseBatchesTab } from './CourseBatchesTab';
 import { CourseFormModal } from './CourseFormModal';
 import { CourseProfessorsTab } from './CourseProfessorsTab';
 import { CourseStudentsTab } from './CourseStudentsTab';
+import { CourseTimetableTab } from './CourseTimetableTab';
 import { CurriculumTab } from './CurriculumTab';
 
 export default function CourseDetailPage() {
@@ -50,6 +51,8 @@ export default function CourseDetailPage() {
             subtitle={
               <>
                 {course.code} · {course.category || 'Uncategorised'} · {durationLabel(course.durationValue, course.durationUnit)}
+                {course.academicYear && ` · Academic year ${course.academicYear}`}
+                {course.startDate && ` · ${dateRange(course.startDate, course.endDate)}`}
                 {course.feeAmount !== null && ` · Fee ${formatNumber(course.feeAmount)}`}{' '}
                 <StatusBadge status={course.isActive ? 'active' : 'inactive'} />
               </>
@@ -96,12 +99,24 @@ export default function CourseDetailPage() {
             onChange={(value) => setParams({ tab: value }, { replace: true })}
             tabs={[
               { value: 'curriculum', label: 'Modules & Lessons', count: course.moduleCount },
+              { value: 'timetable', label: 'Weekly Timetable' },
               { value: 'students', label: 'Students', count: course.studentCount },
               { value: 'professors', label: 'Professors', count: course.professorCount },
               { value: 'batches', label: 'Batches', count: course.batchCount },
             ]}
           />
           {tab === 'curriculum' && <CurriculumTab course={course} professors={professors.data ?? []} onChange={state.reload} />}
+          {tab === 'timetable' && (
+            <CourseTimetableTab
+              course={course}
+              onChange={() => {
+                // A lecturer's new professor account must also appear in the professor lists.
+                state.reload();
+                professors.reload();
+              }}
+              onEditCourse={() => setEditing(true)}
+            />
+          )}
           {tab === 'students' && <CourseStudentsTab course={course} onChange={state.reload} />}
           {tab === 'professors' && <CourseProfessorsTab course={course} professors={professors.data ?? []} onChange={state.reload} />}
           {tab === 'batches' && <CourseBatchesTab course={course} />}

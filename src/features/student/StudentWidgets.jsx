@@ -1,7 +1,7 @@
 import { CircleCheck, CirclePlay, ClipboardList, FileText, MessageSquare, PlayCircle, RefreshCw, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState, ProgressBar, StatusBadge } from '@/components';
-import { formatDuration, timeAgo } from '@/utils/format';
+import { formatDate, formatDuration, timeAgo } from '@/utils/format';
 
 /** Video tile (reference: "Featured Videos"): gradient thumbnail, duration, watched badge, progress strip. */
 export function VideoCard({ video }) {
@@ -71,7 +71,8 @@ export function ModuleRow({ module, index }) {
           {module.title}
         </Link>
         <div className="list__sub">
-          {module.progress.itemsDone}/{module.progress.itemsTotal} requirements · {module.lessonCount} lessons
+          {module.progress.itemsTotal > 0 && `${module.progress.itemsDone}/${module.progress.itemsTotal} requirements · `}
+          {module.lessonCount} {module.lessonCount === 1 ? 'lesson' : 'lessons'}
         </div>
       </div>
       <StatusBadge
@@ -79,6 +80,24 @@ export function ModuleRow({ module, index }) {
         label={module.status === 'not_started' ? 'Pending' : undefined}
         tone={module.status === 'not_started' ? 'amber' : undefined}
       />
+    </li>
+  );
+}
+
+/** Assignment row with its due date and status (dashboard "My Assignments"; a table does not fit the half-width card). */
+export function AssignmentRow({ assignment: a }) {
+  return (
+    <li className="list__item">
+      <div className="list__main">
+        <Link to={`/student/assignments/${a.id}`} className="list__title" title={a.title}>
+          {a.title}
+        </Link>
+        <div className="list__sub">
+          {a.dueAt ? `Due ${formatDate(a.dueAt)}` : 'No due date'}
+          {a.isOverdue && <strong style={{ color: 'var(--red-600)' }}> · Overdue</strong>}
+        </div>
+      </div>
+      <StatusBadge status={a.status} label={a.status === 'rework' ? 'Rework' : undefined} />
     </li>
   );
 }

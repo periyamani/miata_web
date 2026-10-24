@@ -21,6 +21,11 @@ const FIELDS = [
     hint: 'Charged to each new enrolment (adjust per student on their page). Existing students keep their fee.',
   },
   { name: 'description', label: 'Description', type: 'textarea', span: true },
+  // Weekly timetable: week 1 begins on the start date.
+  { name: 'academicYear', label: 'Academic year', placeholder: 'e.g. 2026–2027' },
+  { name: 'startDate', label: 'Start date', type: 'date', hint: 'Week 1 of the timetable begins on this day.' },
+  { name: 'endDate', label: 'End date', type: 'date' },
+  { name: 'scheduleNotes', label: 'Timetable notes', type: 'textarea', span: true, rows: 5, hint: 'One note per line.' },
   { name: 'isActive', label: 'Course is active (students can access its content)', type: 'checkbox' },
 ];
 
@@ -41,10 +46,17 @@ export function CourseFormModal({ open, course, onClose, onSaved }) {
         durationUnit: course?.durationUnit ?? '',
         feeAmount: course?.feeAmount ?? '',
         description: course?.description ?? '',
+        academicYear: course?.academicYear ?? '',
+        startDate: course?.startDate ?? '',
+        endDate: course?.endDate ?? '',
+        scheduleNotes: course?.scheduleNotes ?? '',
         isActive: course?.isActive ?? true,
       }}
       validate={(values) => ({
         durationValue: Boolean(values.durationValue) !== Boolean(values.durationUnit) ? 'Enter both the duration and its unit' : null,
+        academicYear:
+          values.academicYear && !/^\d{4}[–-]\d{4}$/.test(values.academicYear.trim()) ? 'Use the form 2026–2027' : null,
+        endDate: values.startDate && values.endDate && values.endDate < values.startDate ? 'The end date must be on or after the start date' : null,
         feeAmount:
           values.feeAmount !== '' && !/^\d+(\.\d{1,2})?$/.test(String(values.feeAmount).trim())
             ? 'Enter the fee as a number, e.g. 36000'
@@ -57,6 +69,9 @@ export function CourseFormModal({ open, course, onClose, onSaved }) {
           durationValue: values.durationValue ? Number(values.durationValue) : null,
           durationUnit: values.durationUnit || null,
           feeAmount: values.feeAmount === '' ? null : Number(values.feeAmount),
+          academicYear: values.academicYear.trim() || null,
+          startDate: values.startDate || null,
+          endDate: values.endDate || null,
         };
         const res = course ? await api.put(`/admin/courses/${course.id}`, payload) : await api.post('/admin/courses', payload);
         toast.success(course ? 'Course updated' : 'Course created');

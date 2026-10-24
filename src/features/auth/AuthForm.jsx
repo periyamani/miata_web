@@ -1,5 +1,5 @@
 // Form building blocks for the sign-in pages, in the original website's login page design.
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 /** The login-page section; `single` centres one column (no dashed divider). */
 export function AuthArea({ notice, single = false, children }) {
@@ -24,18 +24,33 @@ export function AuthNotice({ children }) {
   );
 }
 
-export function AuthField({ error, hint, label, ...props }) {
+/** A theme input; password fields get an eye button that shows or hides the password. */
+export function AuthField({ error, hint, label, type, ...props }) {
   const id = useId();
+  const [visible, setVisible] = useState(false);
+  const isPassword = type === 'password';
   const describedBy = [error && `${id}-error`, hint && `${id}-hint`].filter(Boolean).join(' ') || undefined;
   return (
-    <div className="login-page__form-input-box">
+    <div className={`login-page__form-input-box${isPassword ? ' login-page__form-input-box--password' : ''}`}>
       <input
         id={id}
+        type={isPassword && visible ? 'text' : type}
         aria-label={label ?? props.placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         {...props}
       />
+      {isPassword && (
+        <button
+          type="button"
+          className="login-page__password-toggle"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? 'Hide password' : 'Show password'}
+          aria-controls={id}
+        >
+          <span className={`fa ${visible ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></span>
+        </button>
+      )}
       {hint && !error && (
         <span className="login-page__field-hint" id={`${id}-hint`}>
           {hint}
